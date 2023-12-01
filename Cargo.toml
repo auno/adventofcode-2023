@@ -12,3 +12,4 @@ lazy_static = "1.4.0"
 scan_fmt = "0.2.6"
 anyhow = "1.0.66"
 rayon = "1.6.0"
+phf = { version = "0.11.2", features = ["macros"] }
