@@ -21,4 +21,6 @@ or give it a specific day to run using
 
 ## Scoreboard
 
-Foo bar baz
+| Problem | Stars | Time | Rank |
+| ------- | ----- | ---- | ---- |
+| [Day 01](./src/day01.rs) | ⭐⭐ | 02:25:17 / 03:07:22 | 21911 / 15711 |
