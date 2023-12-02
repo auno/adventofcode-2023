@@ -4,8 +4,25 @@ use scan_fmt::scan_fmt;
 use std::cmp::max;
 use itertools::Itertools;
 
-type Reveals = Vec<(u32, u32, u32)>;
-type Game = (u32, Reveals);
+type Reveal = (u32, u32, u32);
+type Game = (u32, Vec<Reveal>);
+
+fn parse_reveal(reveal: &str) -> Result<Reveal> {
+    reveal
+        .split(", ")
+        .map(|count_color| {
+            let (count, color) = scan_fmt!(count_color, "{d} {}", u32, String)?;
+            Ok(
+                match color.as_str() {
+                    "red" => (count, 0, 0),
+                    "green" => (0, count, 0),
+                    "blue" => (0, 0, count),
+                    _ => bail!("Unknown color: {}", color),
+                }
+            )
+        })
+        .fold_ok((0, 0, 0), |(r1, g1, b1), (r2, g2, b2)| (r1 + r2, g1 + g2, b1 + b2))
+}
 
 #[aoc_generator(day2)]
 fn parse(input: &str) -> Result<Vec<Game>> {
@@ -16,23 +33,8 @@ fn parse(input: &str) -> Result<Vec<Game>> {
             let game_id = scan_fmt!(game, "Game {d}", u32)?;
             let reveals = reveals
                 .split("; ")
-                .map(|reveal| {
-                    reveal
-                        .split(", ")
-                        .map(|count_color| {
-                            let (count, color) = scan_fmt!(count_color, "{d} {}", u32, String)?;
-                            Ok(
-                                match color.as_str() {
-                                    "red" => (count, 0, 0),
-                                    "green" => (0, count, 0),
-                                    "blue" => (0, 0, count),
-                                    _ => bail!("Unknown color: {}", color),
-                                }
-                            )
-                        })
-                        .fold_ok((0, 0, 0), |(r1, g1, b1), (r2, g2, b2)| (r1 + r2, g1 + g2, b1 + b2))
-                })
-                .collect::<Result<Reveals>>()?;
+                .map(parse_reveal)
+                .collect::<Result<Vec<Reveal>>>()?;
 
             Ok((game_id, reveals))
         })
