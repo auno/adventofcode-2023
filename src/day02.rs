@@ -1,6 +1,7 @@
 use aoc_runner_derive::{aoc, aoc_generator};
 use anyhow::{Context, Result};
 use scan_fmt::scan_fmt;
+use std::cmp::max;
 
 type Game = (u32, Vec<(u32, u32, u32)>);
 
@@ -10,7 +11,7 @@ fn parse(input: &str) -> Result<Vec<Game>> {
         .lines()
         .map(|line| {
             let (game, reveals) = line.split_once(": ").context(format!("Unable to parse line: {}", line))?;
-            let game_id = scan_fmt!(line, "Game {d}", u32)?;
+            let game_id = scan_fmt!(game, "Game {d}", u32)?;
             let reveals = reveals
                 .split("; ")
                 .map(|reveal| {
@@ -25,7 +26,7 @@ fn parse(input: &str) -> Result<Vec<Game>> {
                                 _ => panic!("Unknown color: {}", color),
                             }
                         })
-                        .fold((0, 0, 0), |(a1, a2, a3), (b1, b2, b3)| (a1 + b1, a2 + b2, a3 + b3))
+                        .fold((0, 0, 0), |(r1, g1, b1), (r2, g2, b2)| (r1 + r2, g1 + g2, b1 + b2))
                 })
                 .collect();
 
@@ -35,11 +36,24 @@ fn parse(input: &str) -> Result<Vec<Game>> {
 }
 
 #[aoc(day2, part1)]
-fn part1(games: &Vec<Game>) -> u32 {
+fn part1(games: &[Game]) -> u32 {
     games
         .iter()
         .filter(|(_, reveals)| reveals.iter().all(|(r, g, b)| *r <= 12 && *g <= 13 && *b <= 14))
         .map(|(game_id, _)| game_id)
+        .sum()
+}
+
+#[aoc(day2, part2)]
+fn part2(games: &[Game]) -> u32 {
+    games
+        .iter()
+        .map(|(_, reveals)| {
+            let (r, g, b) = reveals
+                .iter()
+                .fold((0, 0, 0), |(r1, g1, b1), &(r2, g2, b2)| (max(r1, r2), max(g1, g2), max(b1, b2)));
+            r * g * b
+        })
         .sum()
 }
 
@@ -50,5 +64,10 @@ mod tests {
     #[test]
     fn part1_example1() {
         assert_eq!(8, part1(&parse(include_str!("../test_input/day02.part1.8.txt")).unwrap()));
+    }
+
+    #[test]
+    fn part2_example1() {
+        assert_eq!(2286, part2(&parse(include_str!("../test_input/day02.part2.2286.txt")).unwrap()));
     }
 }
