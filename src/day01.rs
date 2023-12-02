@@ -68,6 +68,11 @@ mod tests {
     }
 
     #[test]
+    fn part1_input() {
+        assert_eq!(53921, part1(&parse(include_str!("../input/2023/day1.txt"))));
+    }
+
+    #[test]
     fn part2_example1() {
         assert_eq!(281, part2(&parse(include_str!("../test_input/day01.part2.281.txt"))));
     }
@@ -76,5 +81,10 @@ mod tests {
     fn part2_overlapping() {
         assert_eq!(82, part2(&parse("eightwo")));
         assert_eq!(98, part2(&parse("nineight")));
+    }
+
+    #[test]
+    fn part2_input() {
+        assert_eq!(54676, part2(&parse(include_str!("../input/2023/day1.txt"))));
     }
 }

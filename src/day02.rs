@@ -71,7 +71,17 @@ mod tests {
     }
 
     #[test]
+    fn part1_input() {
+        assert_eq!(2679, part1(&parse(include_str!("../input/2023/day2.txt")).unwrap()));
+    }
+
+    #[test]
     fn part2_example1() {
         assert_eq!(2286, part2(&parse(include_str!("../test_input/day02.part2.2286.txt")).unwrap()));
+    }
+
+    #[test]
+    fn part2_input() {
+        assert_eq!(77607, part2(&parse(include_str!("../input/2023/day2.txt")).unwrap()));
     }
 }
