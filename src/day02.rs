@@ -1,9 +1,11 @@
 use aoc_runner_derive::{aoc, aoc_generator};
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
 use scan_fmt::scan_fmt;
 use std::cmp::max;
+use itertools::Itertools;
 
-type Game = (u32, Vec<(u32, u32, u32)>);
+type Reveals = Vec<(u32, u32, u32)>;
+type Game = (u32, Reveals);
 
 #[aoc_generator(day2)]
 fn parse(input: &str) -> Result<Vec<Game>> {
@@ -18,17 +20,19 @@ fn parse(input: &str) -> Result<Vec<Game>> {
                     reveal
                         .split(", ")
                         .map(|count_color| {
-                            let (count, color) = scan_fmt!(count_color, "{d} {}", u32, String).unwrap();
-                            match color.as_str() {
-                                "red" => (count, 0, 0),
-                                "green" => (0, count, 0),
-                                "blue" => (0, 0, count),
-                                _ => panic!("Unknown color: {}", color),
-                            }
+                            let (count, color) = scan_fmt!(count_color, "{d} {}", u32, String)?;
+                            Ok(
+                                match color.as_str() {
+                                    "red" => (count, 0, 0),
+                                    "green" => (0, count, 0),
+                                    "blue" => (0, 0, count),
+                                    _ => bail!("Unknown color: {}", color),
+                                }
+                            )
                         })
-                        .fold((0, 0, 0), |(r1, g1, b1), (r2, g2, b2)| (r1 + r2, g1 + g2, b1 + b2))
+                        .fold_ok((0, 0, 0), |(r1, g1, b1), (r2, g2, b2)| (r1 + r2, g1 + g2, b1 + b2))
                 })
-                .collect();
+                .collect::<Result<Reveals>>()?;
 
             Ok((game_id, reveals))
         })
@@ -39,7 +43,7 @@ fn parse(input: &str) -> Result<Vec<Game>> {
 fn part1(games: &[Game]) -> u32 {
     games
         .iter()
-        .filter(|(_, reveals)| reveals.iter().all(|(r, g, b)| *r <= 12 && *g <= 13 && *b <= 14))
+        .filter(|(_, reveals)| reveals.iter().all(|&(r, g, b)| r <= 12 && g <= 13 && b <= 14))
         .map(|(game_id, _)| game_id)
         .sum()
 }
