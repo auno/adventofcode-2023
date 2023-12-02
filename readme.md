@@ -14,3 +14,4 @@ naming), you can run any specific day's solution using something like
 | Problem | Stars | Time | Rank |
 | ------- | ----- | ---- | ---- |
 | [Day 01](./src/day01.rs) | ⭐⭐ | 02:25:17 / 03:07:22 | 21911 / 15711 |
+| [Day 02](./src/day02.rs) | ⭐⭐ | 04:04:34 / 04:16:29 | 26814 / 25514 |
