@@ -67,28 +67,15 @@ fn part1(cards: &[Card]) -> u32 {
 }
 
 #[aoc(day4, part2)]
-fn part2(cards: &[Card]) -> usize {
-    let mut precomputed_cards = cards
-        .iter()
-        .map(|card| (
-            card.card_number,
-            card.count_winners(),
-        ))
-        .collect_vec();
+fn part2(cards: &[Card]) -> u32 {
+    let mut counts = vec![0; cards.len()];
 
-    let mut i = 0;
-
-    while i < precomputed_cards.len() {
-        let &(card_number, num_winners) = &precomputed_cards[i];
-
-        for j in 1..=num_winners {
-            precomputed_cards.push(precomputed_cards[card_number - 1 + j]);
-        }
-
-        i += 1;
+    for i in (0..cards.len()).rev() {
+        let num_winners = cards[i].count_winners();
+        counts[i] = 1 + (1..=num_winners).map(|j| counts[i + j]).sum::<u32>();
     }
 
-    precomputed_cards.len()
+    counts.iter().sum()
 }
 
 #[cfg(test)]
