@@ -2,6 +2,7 @@ use std::collections::HashSet;
 use std::str::FromStr;
 use aoc_runner_derive::{aoc, aoc_generator};
 use anyhow::{Result, Error, Context};
+use itertools::Itertools;
 
 #[derive(Clone)]
 struct Card {
@@ -45,6 +46,12 @@ impl FromStr for Card {
     }
 }
 
+impl Card {
+    fn count_winners(&self) -> usize {
+        self.winning_numbers.intersection(&self.numbers).count()
+    }
+}
+
 #[aoc_generator(day4)]
 fn parse(input: &str) -> Result<Vec<Card>> {
     input.lines().map(str::parse).collect()
@@ -54,28 +61,34 @@ fn parse(input: &str) -> Result<Vec<Card>> {
 fn part1(cards: &[Card]) -> u32 {
     cards
         .iter()
-        .map(|card| card.winning_numbers.intersection(&card.numbers).count() as u32)
+        .map(|card| card.count_winners() as u32)
         .map(|num_winners| if num_winners == 0 { 0 } else { 2u32.pow(num_winners - 1) })
         .sum()
 }
 
 #[aoc(day4, part2)]
 fn part2(cards: &[Card]) -> usize {
-    let mut cards = cards.to_vec();
+    let mut precomputed_cards = cards
+        .iter()
+        .map(|card| (
+            card.card_number,
+            card.count_winners(),
+        ))
+        .collect_vec();
+
     let mut i = 0;
 
-    while i < cards.len() {
-        let card = &cards[i];
-        let card_number = card.card_number;
+    while i < precomputed_cards.len() {
+        let &(card_number, num_winners) = &precomputed_cards[i];
 
-        for j in 1..=card.winning_numbers.intersection(&card.numbers).count() {
-            cards.push(cards[card_number - 1 + j].clone());
+        for j in 1..=num_winners {
+            precomputed_cards.push(precomputed_cards[card_number - 1 + j]);
         }
 
         i += 1;
     }
 
-    cards.len()
+    precomputed_cards.len()
 }
 
 #[cfg(test)]
