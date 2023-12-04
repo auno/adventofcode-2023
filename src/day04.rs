@@ -2,11 +2,9 @@ use std::collections::HashSet;
 use std::str::FromStr;
 use aoc_runner_derive::{aoc, aoc_generator};
 use anyhow::{Result, Error, Context};
-use itertools::Itertools;
 
 #[derive(Clone)]
 struct Card {
-    card_number: usize,
     winning_numbers: HashSet<u32>,
     numbers: HashSet<u32>,
 }
@@ -15,16 +13,9 @@ impl FromStr for Card {
     type Err = Error;
 
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        let (header, combined_numbers) = s
+        let (_, combined_numbers) = s
             .split_once(": ")
             .context(format!("Unable to parse card: header not found: {s}"))?;
-
-        let card_number = header
-            .split_whitespace()
-            .nth(1)
-            .context(format!("Unable to parse card header: {header}"))?
-            .parse()
-            .context(format!("Unable to parse card number from header: {header}"))?;
 
         let (winning_numbers, numbers) = combined_numbers
             .split_once(" | ")
@@ -42,7 +33,7 @@ impl FromStr for Card {
             .map(|number| number.parse().context(format!("Unable to parse number: {number}")))
             .collect::<Result<HashSet<u32>>>()?;
 
-        Ok(Card { card_number, winning_numbers, numbers })
+        Ok(Card { winning_numbers, numbers })
     }
 }
 
@@ -62,7 +53,7 @@ fn part1(cards: &[Card]) -> u32 {
     cards
         .iter()
         .map(|card| card.count_winners() as u32)
-        .map(|num_winners| if num_winners == 0 { 0 } else { 2u32.pow(num_winners - 1) })
+        .map(|num_winners| 2u32.pow(num_winners) >> 1)
         .sum()
 }
 
@@ -71,8 +62,7 @@ fn part2(cards: &[Card]) -> u32 {
     let mut counts = vec![0; cards.len()];
 
     for i in (0..cards.len()).rev() {
-        let num_winners = cards[i].count_winners();
-        counts[i] = 1 + (1..=num_winners).map(|j| counts[i + j]).sum::<u32>();
+        counts[i] = 1 + (1..=cards[i].count_winners()).map(|j| counts[i + j]).sum::<u32>();
     }
 
     counts.iter().sum()
