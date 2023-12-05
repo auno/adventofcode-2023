@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 use aoc_runner_derive::{aoc, aoc_generator};
 use anyhow::Result;
+use itertools::Itertools;
 use scan_fmt::scan_fmt;
+use rayon::prelude::*;
 
 type Map = HashMap<String, (String, Vec<(u64, u64, u64)>)>;
 
@@ -64,6 +66,39 @@ fn part1(input: &(Vec<u64>, Map)) -> u64 {
         .unwrap()
 }
 
+#[aoc(day5, part2)]
+fn part2(input: &(Vec<u64>, Map)) -> u64 {
+    let (seeds, map) = input;
+
+    seeds
+        .iter()
+        .tuples()
+        .flat_map(|(start, len)| *start..(start + len))
+        .par_bridge()
+        .map(|seed| {
+            let (mut current_type, mut current_number) = (&"seed".to_string(), seed);
+
+            while current_type != "location" {
+                let (next_type, mappings) = map.get(current_type).unwrap();
+                let mut next_number = current_number;
+
+                for &(dstart, sstart, len) in mappings {
+                    if (sstart..(sstart + len)).contains(&current_number) {
+                        next_number = current_number - sstart + dstart;
+                        break;
+                    }
+                }
+
+                current_type = next_type;
+                current_number = next_number;
+            }
+
+            current_number
+        })
+        .min()
+        .unwrap()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -76,5 +111,15 @@ mod tests {
     #[test]
     fn part1_input() {
         assert_eq!(346433842, part1(&parse(include_str!("../input/2023/day5.txt"))));
+    }
+
+    #[test]
+    fn part2_example1() {
+        assert_eq!(46, part2(&parse(include_str!("../test_input/day05.part2.46.txt"))));
+    }
+
+    #[test]
+    fn part2_input() {
+        assert_eq!(60294664, part2(&parse(include_str!("../input/2023/day5.txt"))));
     }
 }
