@@ -40,47 +40,9 @@ fn parse(input: &str) -> (Vec<i64>, Map) {
     (seeds, map)
 }
 
-#[aoc(day5, part1)]
-fn part1(input: &(Vec<i64>, Map)) -> i64 {
-    let (seeds, map) = input;
-
-    seeds
-        .iter()
-        .map(|seed| {
-            let (mut current_type, mut current_number) = (&"seed".to_string(), *seed);
-
-            while current_type != "location" {
-                let (next_type, mappings) = map.get(current_type).unwrap();
-                let mut next_number = current_number;
-
-                for &(start,end, diff) in mappings {
-                    if (start..end).contains(&current_number) {
-                        next_number = current_number + diff;
-                        break;
-                    }
-                }
-
-                current_type = next_type;
-                current_number = next_number;
-            }
-
-            current_number
-        })
-        .min()
-        .unwrap()
-}
-
-#[aoc(day5, part2)]
-fn part2(input: &(Vec<i64>, Map)) -> i64 {
-    let (seeds, map) = input;
-
-    let mut mappings = seeds
-        .iter()
-        .tuples()
-        .map(|(start, len)| (*start, start + len, 0))
-        .collect_vec();
-
+fn normalize_mappings(map: &Map, mappings: &[(i64, i64, i64)]) -> Vec<(i64, i64, i64)> {
     let mut category = &"seed".to_string();
+    let mut mappings = mappings.to_vec();
 
     while category != "location" {
         let (next_category, next_category_mappings) = map.get(category).unwrap();
@@ -127,10 +89,39 @@ fn part2(input: &(Vec<i64>, Map)) -> i64 {
     }
 
     mappings
+}
+
+fn solve(map: &Map, mappings: &[(i64, i64, i64)]) -> i64 {
+    normalize_mappings(map, mappings)
         .iter()
         .min_by_key(|(start, _, diff)| start + diff)
         .map(|(start, _, diff)| start + diff)
         .unwrap()
+}
+
+#[aoc(day5, part1)]
+fn part1(input: &(Vec<i64>, Map)) -> i64 {
+    let (seeds, map) = input;
+
+    let initial_mappings = seeds
+        .iter()
+        .map(|&seed| (seed, seed + 1, 0))
+        .collect_vec();
+
+    solve(map, &initial_mappings)
+}
+
+#[aoc(day5, part2)]
+fn part2(input: &(Vec<i64>, Map)) -> i64 {
+    let (seeds, map) = input;
+
+    let initial_mappings = seeds
+        .iter()
+        .tuples()
+        .map(|(start, len)| (*start, start + len, 0))
+        .collect_vec();
+
+    solve(map, &initial_mappings)
 }
 
 #[cfg(test)]
