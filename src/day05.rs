@@ -70,16 +70,24 @@ fn part1(input: &(Vec<u64>, Map)) -> u64 {
 fn part2(input: &(Vec<u64>, Map)) -> u64 {
     let (seeds, map) = input;
 
+    let mut mappings_sequence = vec![];
+
+    let mut current_type = &"seed".to_string();
+    while current_type != "location" {
+        let (next_type, mappings) = map.get(current_type).unwrap();
+        mappings_sequence.push(mappings);
+        current_type = next_type;
+    }
+
     seeds
         .iter()
         .tuples()
         .flat_map(|(start, len)| *start..(start + len))
         .par_bridge()
         .map(|seed| {
-            let (mut current_type, mut current_number) = (&"seed".to_string(), seed);
+            let mut current_number = seed;
 
-            while current_type != "location" {
-                let (next_type, mappings) = map.get(current_type).unwrap();
+            for &mappings in &mappings_sequence {
                 let mut next_number = current_number;
 
                 for &(dstart, sstart, len) in mappings {
@@ -89,7 +97,6 @@ fn part2(input: &(Vec<u64>, Map)) -> u64 {
                     }
                 }
 
-                current_type = next_type;
                 current_number = next_number;
             }
 
