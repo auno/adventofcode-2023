@@ -35,6 +35,21 @@ fn part1(input: &[(u32, u32)]) -> usize {
         .product()
 }
 
+#[aoc(day6, part2)]
+fn part2(input: &[(u32, u32)]) -> usize {
+    let (time, distance) = input
+        .iter()
+        .map(|(t, d)| (t.to_string(), d.to_string()))
+        .fold((String::new(), String::new()),  |(acct, accd), (t, d)| (acct + &t, accd + &d));
+
+    let (time, distance) = (time.parse::<u64>().unwrap(), distance.parse::<u64>().unwrap());
+
+    (0..time)
+        .map(|c| (time - c) * c)
+        .filter(|&d| d > distance)
+        .count()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -47,5 +62,14 @@ mod tests {
     #[test]
     fn part1_input() {
         assert_eq!(503424, part1(&parse(include_str!("../input/2023/day6.txt")).unwrap()));
+    }
+    #[test]
+    fn part2_example1() {
+        assert_eq!(71503, part2(&parse(include_str!("../test_input/day06.part2.71503.txt")).unwrap()));
+    }
+
+    #[test]
+    fn part2_input() {
+        assert_eq!(32607562, part2(&parse(include_str!("../input/2023/day6.txt")).unwrap()));
     }
 }
