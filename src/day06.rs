@@ -2,52 +2,71 @@ use std::iter::zip;
 use aoc_runner_derive::{aoc, aoc_generator};
 use anyhow::{Context, Result};
 
+type Input = (Vec<(u64, u64)>, (u64, u64));
+
 #[aoc_generator(day6)]
-fn parse(input: &str) -> Result<Vec<(u32, u32)>> {
+fn parse(input: &str) -> Result<Input> {
     let mut lines = input.lines();
 
-    let times = lines
+    let a_times = lines
         .next()
         .context("Input missing first line")?
         .split_whitespace()
         .skip(1)
-        .map(|s| s.parse::<u32>().context(format!("Could not parse number: {s}")));
-    let distances = lines
+        .map(|s| s.parse::<u64>().context(format!("Could not parse number: {s}")));
+    let a_distances = lines
         .next()
         .context("Input missing second line")?
         .split_whitespace()
         .skip(1)
-        .map(|s| s.parse::<u32>().context(format!("Could not parse number: {s}")));
+        .map(|s| s.parse::<u64>().context(format!("Could not parse number: {s}")));
 
-    zip(times, distances).map(|(t, d)| Ok((t?, d?))).collect()
+    let mut lines = input.lines();
+
+    let b_time = lines
+        .next()
+        .context("Input missing first line")?
+        .replace(' ', "")
+        .split_once(':')
+        .map(|(_, s)| s.parse::<u64>().context(format!("Could not parse number: {s}")))
+        .context("Could not parse time")??;
+
+    let b_distance = lines
+        .next()
+        .context("Input missing first line")?
+        .replace(' ', "")
+        .split_once(':')
+        .map(|(_, s)| s.parse::<u64>().context(format!("Could not parse number: {s}")))
+        .context("Could not parse distance")??;
+
+    Ok((
+        zip(a_times, a_distances).map(|(t, d)| Ok((t?, d?))).collect::<Result<Vec<(u64, u64)>>>()?,
+        (b_time, b_distance)
+    ))
+
+}
+
+fn count_wins(time: f64, distance: f64) -> usize {
+    let r1 = ((time + (time * time - 4.0 * distance).sqrt()) / 2.0).ceil() as usize - 1;
+    let r2 = ((time - (time * time - 4.0 * distance).sqrt()) / 2.0).floor() as usize + 1;
+
+    r1 - r2 + 1
 }
 
 #[aoc(day6, part1)]
-fn part1(input: &[(u32, u32)]) -> usize {
+fn part1(input: &Input) -> usize {
+    let (input, _) = input;
+
     input
         .iter()
-        .map(|&(time, distance)| {
-            (0..time)
-                .map(|c| (time - c) * c)
-                .filter(|&d| d > distance)
-                .count()
-        })
+        .map(|&(time, distance)| count_wins(time as f64, distance as f64))
         .product()
 }
 
 #[aoc(day6, part2)]
-fn part2(input: &[(u32, u32)]) -> usize {
-    let (time, distance) = input
-        .iter()
-        .map(|(t, d)| (t.to_string(), d.to_string()))
-        .fold((String::new(), String::new()),  |(acct, accd), (t, d)| (acct + &t, accd + &d));
-
-    let (time, distance) = (time.parse::<u64>().unwrap(), distance.parse::<u64>().unwrap());
-
-    (0..time)
-        .map(|c| (time - c) * c)
-        .filter(|&d| d > distance)
-        .count()
+fn part2(input: &Input) -> usize {
+    let (_, (time, distance)) = *input;
+    count_wins(time as f64, distance as f64)
 }
 
 #[cfg(test)]
