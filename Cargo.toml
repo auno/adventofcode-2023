@@ -6,10 +6,12 @@ edition = "2021"
 [dependencies]
 aoc-runner = "0.3.0"
 aoc-runner-derive = "0.3.0"
-itertools = "0.10.1"
+itertools = "0.12.0"
 regex = "1.5.4"
 lazy_static = "1.4.0"
 scan_fmt = "0.2.6"
 anyhow = "1.0.66"
 rayon = "1.8.0"
 phf = { version = "0.11.2", features = ["macros"] }
+strum = "0.25.0"
+strum_macros = "0.25.3"
