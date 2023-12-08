@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use aoc_runner_derive::{aoc, aoc_generator};
 use scan_fmt::scan_fmt;
 use anyhow::{bail, Error};
+use itertools::Itertools;
 
 enum Instruction {
     Left,
@@ -37,15 +38,14 @@ fn parse(input: &str) -> Input {
     (instructions, map)
 }
 
-#[aoc(day8, part1)]
-fn part1(input: &Input) -> usize {
+fn distance(start: &str, end: &str, input: &Input) -> usize {
     let (instructions, map) = input;
 
-    let mut location = &"AAA".to_string();
+    let mut location = start;
     let mut distance = 0;
 
     for instruction in instructions.iter().cycle() {
-        if location == "ZZZ" {
+        if location.ends_with(end) {
             break;
         }
 
@@ -58,6 +58,43 @@ fn part1(input: &Input) -> usize {
     }
 
     distance
+}
+
+fn gcd(a: usize, b: usize) -> usize {
+    let (mut a, mut b) = (a, b);
+
+    while b != 0 {
+        let t = b;
+        b = a % b;
+        a = t;
+    }
+
+    a
+}
+
+fn lcm(a: usize, b: usize) -> usize {
+    (a * b) / gcd(a, b)
+}
+
+#[aoc(day8, part1)]
+fn part1(input: &Input) -> usize {
+    distance("AAA", "ZZZ", input)
+}
+
+#[aoc(day8, part2)]
+fn part2(input: &Input) -> usize {
+    let (_, map) = input;
+
+    let distances = map
+        .keys()
+        .filter(|k| k.ends_with('A'))
+        .map(|start| distance(start, "Z", input))
+        .collect_vec();
+
+    distances
+        .into_iter()
+        .reduce(lcm)
+        .unwrap()
 }
 
 #[cfg(test)]
@@ -77,5 +114,15 @@ mod tests {
     #[test]
     fn part1_input() {
         assert_eq!(21883, part1(&parse(include_str!("../input/2023/day8.txt"))));
+    }
+
+    #[test]
+    fn part2_example1() {
+        assert_eq!(6, part2(&parse(include_str!("../test_input/day08.part2.6.txt"))));
+    }
+
+    #[test]
+    fn part2_input() {
+        assert_eq!(12833235391111, part2(&parse(include_str!("../input/2023/day8.txt"))));
     }
 }
