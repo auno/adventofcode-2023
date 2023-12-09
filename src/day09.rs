@@ -40,25 +40,14 @@ fn part1(input: &[Vec<i32>]) -> Option<i32> {
         .sum()
 }
 
-fn get_previous(numbers: &[i32]) -> Option<i32> {
-    let diffs = numbers
-        .iter().tuple_windows()
-        .map(|(a, b)| b - a)
-        .collect_vec();
-
-    if diffs.iter().all_equal() {
-        return Some(numbers.first()? - diffs.first()?)
-    }
-
-    Some(numbers.first()? - get_previous(&diffs)?)
-}
-
 #[aoc(day9, part2)]
 fn part2(input: &[Vec<i32>]) -> Option<i32> {
     input
         .iter()
-        .map(Vec::as_slice)
-        .map(get_previous)
+        .map(|numbers| {
+            let rnumbers = numbers.iter().copied().rev().collect_vec();
+            get_next(&rnumbers)
+        })
         .sum()
 }
 
