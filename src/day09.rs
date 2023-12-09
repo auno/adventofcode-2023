@@ -14,7 +14,7 @@ fn parse(input: &str) -> Result<Vec<Vec<i32>>> {
         .collect()
 }
 
-fn get_next(numbers: &[i32]) -> i32 {
+fn get_next(numbers: &[i32]) -> Option<i32> {
     if numbers.len() < 2 {
         panic!("Too few numbers: {:?}", numbers);
     }
@@ -25,18 +25,40 @@ fn get_next(numbers: &[i32]) -> i32 {
         .collect_vec();
 
     if diffs.iter().all_equal() {
-        return numbers.last().unwrap() + diffs[0]
+        return Some(numbers.last()? + diffs.first()?)
     }
 
-    numbers.last().unwrap() + get_next(&diffs)
+    Some(numbers.last()? + get_next(&diffs)?)
 }
 
 #[aoc(day9, part1)]
-fn part1(input: &[Vec<i32>]) -> i32 {
+fn part1(input: &[Vec<i32>]) -> Option<i32> {
     input
         .iter()
         .map(Vec::as_slice)
         .map(get_next)
+        .sum()
+}
+
+fn get_previous(numbers: &[i32]) -> Option<i32> {
+    let diffs = numbers
+        .iter().tuple_windows()
+        .map(|(a, b)| b - a)
+        .collect_vec();
+
+    if diffs.iter().all_equal() {
+        return Some(numbers.first()? - diffs.first()?)
+    }
+
+    Some(numbers.first()? - get_previous(&diffs)?)
+}
+
+#[aoc(day9, part2)]
+fn part2(input: &[Vec<i32>]) -> Option<i32> {
+    input
+        .iter()
+        .map(Vec::as_slice)
+        .map(get_previous)
         .sum()
 }
 
@@ -46,11 +68,21 @@ mod tests {
 
     #[test]
     fn part1_example1() {
-        assert_eq!(114, part1(&parse(include_str!("../test_input/day09.part1.114.txt")).unwrap()));
+        assert_eq!(114, part1(&parse(include_str!("../test_input/day09.part1.114.txt")).unwrap()).unwrap());
     }
 
     #[test]
     fn part1_input() {
-        assert_eq!(1916822650, part1(&parse(include_str!("../input/2023/day9.txt")).unwrap()));
+        assert_eq!(1916822650, part1(&parse(include_str!("../input/2023/day9.txt")).unwrap()).unwrap());
+    }
+
+    #[test]
+    fn part2_example1() {
+        assert_eq!(2, part2(&parse(include_str!("../test_input/day09.part2.2.txt")).unwrap()).unwrap());
+    }
+
+    #[test]
+    fn part2_input() {
+        assert_eq!(966, part2(&parse(include_str!("../input/2023/day9.txt")).unwrap()).unwrap());
     }
 }
