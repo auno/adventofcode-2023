@@ -1,4 +1,6 @@
-use std::collections::HashMap;
+use std::cmp::max;
+use std::collections::{HashMap, HashSet, VecDeque};
+use std::fmt::{Display, Formatter, Write};
 use std::iter::successors;
 use aoc_runner_derive::{aoc, aoc_generator};
 use anyhow::{bail, Context, Error, Result};
@@ -12,6 +14,19 @@ enum Pipe {
     BendNorthWest,
     BendSouthEast,
     BendSouthWest,
+}
+
+impl Display for Pipe {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Pipe::Vertical => f.write_char('│'),
+            Pipe::Horizontal => f.write_char('─'),
+            Pipe::BendNorthEast => f.write_char('└'),
+            Pipe::BendNorthWest => f.write_char('┘'),
+            Pipe::BendSouthEast => f.write_char('┌'),
+            Pipe::BendSouthWest => f.write_char('┐'),
+        }
+    }
 }
 
 impl TryFrom<char> for Pipe {
@@ -99,12 +114,73 @@ fn find_path(starting_position: (i32, i32), map: &HashMap<(i32, i32), Pipe>) -> 
     }).map(|(pos, _)| pos).collect_vec()
 }
 
+fn transform_tile(position: (i32, i32), pipe: Pipe) -> [((i32, i32), Pipe); 3] {
+    let (j, i) = position;
+
+    match pipe {
+        Pipe::Vertical => [((j * 3 - 1, i * 3), Pipe::Vertical), ((j * 3, i * 3), Pipe::Vertical), ((j * 3 + 1, i * 3), Pipe::Vertical)],
+        Pipe::Horizontal => [((j * 3, i * 3 - 1), Pipe::Horizontal), ((j * 3, i * 3), Pipe::Horizontal), ((j * 3, i * 3 + 1), Pipe::Horizontal)],
+        Pipe::BendNorthEast => [((j * 3 - 1, i * 3), Pipe::Vertical), ((j * 3, i * 3), Pipe::BendNorthEast), ((j * 3, i * 3 + 1), Pipe::Horizontal)],
+        Pipe::BendNorthWest => [((j * 3 - 1, i * 3), Pipe::Vertical), ((j * 3, i * 3), Pipe::BendNorthWest), ((j * 3, i * 3 - 1), Pipe::Horizontal)],
+        Pipe::BendSouthEast => [((j * 3 + 1, i * 3), Pipe::Vertical), ((j * 3, i * 3), Pipe::BendSouthEast), ((j * 3, i * 3 + 1), Pipe::Horizontal)],
+        Pipe::BendSouthWest => [((j * 3 + 1, i * 3), Pipe::Vertical), ((j * 3, i * 3), Pipe::BendSouthWest), ((j * 3, i * 3 - 1), Pipe::Horizontal)],
+    }
+}
+
+fn transform_path(path: Vec<(i32, i32)>, map: &HashMap<(i32, i32), Pipe>) -> HashSet<(i32, i32)> {
+    path
+        .iter()
+        .flat_map(|&position| transform_tile(position, *map.get(&position).unwrap()))
+        .map(|(position, _)| position)
+        .collect()
+}
+
+fn fill(path: &HashSet<(i32, i32)>, height: i32, width: i32) -> HashSet<(i32, i32)> {
+    let mut outside = HashSet::from([(-1, -1)]);
+    let mut queue = VecDeque::from([(-1, -1)]);
+
+    while let Some(position) = queue.pop_front() {
+        for neighbor in [
+            (position.0 - 1, position.1 - 1), (position.0 - 1, position.1), (position.0 - 1, position.1 + 1),
+            (position.0, position.1 - 1), (position.0, position.1 + 1),
+            (position.0 + 1, position.1 - 1), (position.0 + 1, position.1), (position.0 + 1, position.1 + 1),
+        ] {
+            if !outside.contains(&neighbor) && !path.contains(&neighbor) && (-1..height).contains(&neighbor.0) && (-1..width).contains(&neighbor.1) {
+                queue.push_back(neighbor);
+                outside.insert(neighbor);
+            }
+        }
+    }
+    outside
+}
+
+fn count_inside(transformed_path: &HashSet<(i32, i32)>, height: i32, width: i32, outside: &HashSet<(i32, i32)>) -> usize {
+    (0..height).step_by(3).cartesian_product((0..width).step_by(3))
+        .filter(|position| !outside.contains(position))
+        .filter(|position| !transformed_path.contains(position))
+        .count()
+}
+
 #[aoc(day10, part1)]
 fn part1(input: &Input) -> usize {
     let (starting_position, map) = input.clone();
     let path = find_path(starting_position, &map);
 
     path.len() / 2
+}
+
+#[aoc(day10, part2)]
+fn part2(input: &Input) -> usize {
+    let (starting_position, map) = input.clone();
+    let path = transform_path(find_path(starting_position, &map), &map);
+
+    let (height, width) = map
+        .keys()
+        .fold((0, 0), |acc, &pos| (max(acc.0, pos.0 * 3 + 2), max(acc.1, pos.1 * 3 + 2)));
+
+    let outside = fill(&path, height, width);
+
+    count_inside(&path, height, width, &outside)
 }
 
 #[cfg(test)]
@@ -124,5 +200,25 @@ mod tests {
     #[test]
     fn part1_input() {
         assert_eq!(6882, part1(&parse(include_str!("../input/2023/day10.txt")).unwrap()));
+    }
+
+    #[test]
+    fn part2_example1() {
+        assert_eq!(4, part2(&parse(include_str!("../test_input/day10.part2.4.txt")).unwrap()));
+    }
+
+    #[test]
+    fn part2_example2() {
+        assert_eq!(8, part2(&parse(include_str!("../test_input/day10.part2.8.txt")).unwrap()));
+    }
+
+    #[test]
+    fn part2_example3() {
+        assert_eq!(10, part2(&parse(include_str!("../test_input/day10.part2.10.txt")).unwrap()));
+    }
+
+    #[test]
+    fn part2_input() {
+        assert_eq!(491, part2(&parse(include_str!("../input/2023/day10.txt")).unwrap()));
     }
 }
