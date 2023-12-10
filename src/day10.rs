@@ -163,20 +163,20 @@ fn count_inside(transformed_path: &HashSet<(i32, i32)>, height: i32, width: i32,
 
 #[aoc(day10, part1)]
 fn part1(input: &Input) -> usize {
-    let (starting_position, map) = input.clone();
-    let path = find_path(starting_position, &map);
+    let (starting_position, map) = input;
+    let path = find_path(*starting_position, map);
 
     path.len() / 2
 }
 
 #[aoc(day10, part2)]
 fn part2(input: &Input) -> usize {
-    let (starting_position, map) = input.clone();
-    let path = transform_path(find_path(starting_position, &map), &map);
+    let (starting_position, map) = input;
+    let path = transform_path(find_path(*starting_position, map), map);
 
-    let (height, width) = map
-        .keys()
-        .fold((0, 0), |acc, &pos| (max(acc.0, pos.0 * 3 + 2), max(acc.1, pos.1 * 3 + 2)));
+    let (height, width) = path
+        .iter()
+        .fold((0, 0), |acc, &pos| (max(acc.0, pos.0 + 2), max(acc.1, pos.1 + 2)));
 
     let outside = fill(&path, height, width);
 
