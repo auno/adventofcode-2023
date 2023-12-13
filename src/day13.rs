@@ -24,6 +24,11 @@ impl TryFrom<char> for Tile {
     }
 }
 
+enum Orientation {
+    Vertical,
+    Horizontal,
+}
+
 type Input = Vec<(usize, usize, HashMap<(usize, usize), Tile>)>;
 
 #[aoc_generator(day13)]
@@ -48,34 +53,42 @@ fn parse(input: &str) -> Result<Input> {
         .collect()
 }
 
+fn find_mirror(height: usize, width: usize, pattern: &HashMap<(usize, usize), Tile>) -> Option<(Orientation, usize)> {
+    for k in 1..(width) {
+        let reflection_width = min(k, width - k);
+
+        if (0..height)
+            .cartesian_product(0..reflection_width)
+            .all(|(j, l)| pattern.get(&(j, k - l - 1)) == pattern.get(&(j, k + l)))
+        {
+            return Some((Orientation::Vertical, k));
+        }
+    }
+
+    for k in 1..(height) {
+        let reflection_height = min(k, height - k);
+
+        if (0..width)
+            .cartesian_product(0..reflection_height)
+            .all(|(i, l)| pattern.get(&(k - l - 1, i)) == pattern.get(&(k + l, i)))
+        {
+            return Some((Orientation::Horizontal, k));
+        }
+    }
+
+    None
+}
+
 #[aoc(day13, part1)]
 fn part1(input: &Input) -> usize {
     input
         .iter()
         .map(|(height, width, pattern)| {
-            for k in 1..(*width) {
-                let reflection_width = min(k, width - k);
-
-                if (0..*height)
-                    .cartesian_product(0..reflection_width)
-                    .all(|(j, l)| pattern.get(&(j, k - l - 1)) == pattern.get(&(j, k + l)))
-                {
-                    return k;
-                }
+            match find_mirror(*height, *width, pattern) {
+                Some((Orientation::Vertical, k)) => k,
+                Some((Orientation::Horizontal, k)) => k * 100,
+                None => panic!("No solution found"),
             }
-
-            for k in 1..(*height) {
-                let reflection_height = min(k, height - k);
-
-                if (0..*width)
-                    .cartesian_product(0..reflection_height)
-                    .all(|(i, l)| pattern.get(&(k - l - 1, i)) == pattern.get(&(k + l, i)))
-                {
-                    return k * 100;
-                }
-            }
-
-            panic!("No solution found");
         })
         .sum()
 }
