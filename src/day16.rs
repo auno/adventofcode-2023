@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 use aoc_runner_derive::{aoc, aoc_generator};
 use anyhow::{bail, Context, Error, Result};
-use itertools::Itertools;
+use itertools::{chain, Itertools};
 
 #[derive(Eq, PartialEq, Copy, Clone)]
 enum Element {
@@ -48,7 +48,7 @@ fn parse(input: &str) -> Result<Input> {
     Ok((height, width, map?))
 }
 
-#[derive(Eq, PartialEq, Copy, Clone, Hash)]
+#[derive(Eq, PartialEq, Copy, Clone, Hash, Debug)]
 enum Direction {
     Up,
     Down,
@@ -102,10 +102,9 @@ fn neighbors((position, direction): State, elements: &Elements, height: usize, w
         .collect_vec()
 }
 
-#[aoc(day16, part1)]
-fn part1((height, width, elements): &Input) -> usize {
-    let mut seen: HashSet<State> = HashSet::from([((1, 1), Direction::Right)]);
-    let mut queue: VecDeque<State> = VecDeque::from([((1, 1), Direction::Right)]);
+fn count_energized_tiles(elements: &Elements, height: &usize, width: &usize, start_state: ((usize, usize), Direction)) -> usize {
+    let mut seen: HashSet<State> = HashSet::from([start_state]);
+    let mut queue: VecDeque<State> = VecDeque::from([start_state]);
 
     while let Some(state) = queue.pop_front() {
         for &neighbor in neighbors(state, elements, *height, *width).iter() {
@@ -124,6 +123,21 @@ fn part1((height, width, elements): &Input) -> usize {
         .count()
 }
 
+#[aoc(day16, part1)]
+fn part1((height, width, elements): &Input) -> usize {
+    count_energized_tiles(elements, height, width, ((1, 1), Direction::Right))
+}
+
+#[aoc(day16, part2)]
+fn part2((height, width, elements): &Input) -> Option<usize> {
+    chain(
+        (1..=*height).flat_map(|j| [((j, 1), Direction::Right), ((j, *width), Direction::Left)]),
+        (1..=*width).flat_map(|i| [((1, i), Direction::Down), ((*height, i), Direction::Up)]),
+    )
+        .map(|start_state| count_energized_tiles(elements, height, width, start_state))
+        .max()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -136,5 +150,15 @@ mod tests {
     #[test]
     fn part1_input() {
         assert_eq!(7608, part1(&parse(include_str!("../input/2023/day16.txt")).unwrap()));
+    }
+
+    #[test]
+    fn part2_example1() {
+        assert_eq!(51, part2(&parse(include_str!("../test_input/day16.part2.51.txt")).unwrap()).unwrap());
+    }
+
+    #[test]
+    fn part2_input() {
+        assert_eq!(8221, part2(&parse(include_str!("../input/2023/day16.txt")).unwrap()).unwrap());
     }
 }
