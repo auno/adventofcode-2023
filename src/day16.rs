@@ -3,6 +3,25 @@ use aoc_runner_derive::{aoc, aoc_generator};
 use anyhow::{bail, Context, Error, Result};
 use itertools::{chain, Itertools};
 
+#[derive(Eq, PartialEq, Copy, Clone, Hash, Debug)]
+enum Direction {
+    Up,
+    Down,
+    Left,
+    Right,
+}
+
+impl Direction {
+    fn step(&self, (j, i): (usize, usize)) -> (usize, usize) {
+        match self {
+            Direction::Up => (j - 1, i),
+            Direction::Down => (j + 1, i),
+            Direction::Left => (j, i - 1),
+            Direction::Right => (j, i + 1),
+        }
+    }
+}
+
 #[derive(Eq, PartialEq, Copy, Clone)]
 enum Element {
     Mirror1,
@@ -27,8 +46,31 @@ impl TryFrom<char> for Element {
     }
 }
 
+impl Element {
+    fn transform(&self, incoming_direction: Direction) -> [Option<Direction>; 2] {
+        match (self, incoming_direction) {
+            (Element::Mirror1, Direction::Up) => [ Some(Direction::Right), None ],
+            (Element::Mirror1, Direction::Down) => [ Some(Direction::Left), None ],
+            (Element::Mirror1, Direction::Left) => [ Some(Direction::Down), None ],
+            (Element::Mirror1, Direction::Right) => [ Some(Direction::Up), None ],
+
+            (Element::Mirror2, Direction::Up) => [ Some(Direction::Left), None ],
+            (Element::Mirror2, Direction::Down) => [ Some(Direction::Right), None ],
+            (Element::Mirror2, Direction::Left) => [ Some(Direction::Up), None ],
+            (Element::Mirror2, Direction::Right) => [ Some(Direction::Down), None ],
+
+            (Element::SplitterH, Direction::Left | Direction::Right)  => [ Some(incoming_direction), None ],
+            (Element::SplitterH, Direction::Up | Direction::Down) => [ Some(Direction::Left), Some(Direction::Right) ],
+
+            (Element::SplitterV, Direction::Up | Direction::Down) => [ Some(incoming_direction), None ],
+            (Element::SplitterV, Direction::Left | Direction::Right) => [ Some(Direction::Up), Some(Direction::Down) ],
+        }
+    }
+}
+
 type Elements = HashMap<(usize, usize), Element>;
 type Input = (usize, usize, Elements);
+type State = ((usize, usize), Direction);
 
 #[aoc_generator(day16)]
 fn parse(input: &str) -> Result<Input> {
@@ -48,56 +90,14 @@ fn parse(input: &str) -> Result<Input> {
     Ok((height, width, map?))
 }
 
-#[derive(Eq, PartialEq, Copy, Clone, Hash, Debug)]
-enum Direction {
-    Up,
-    Down,
-    Left,
-    Right,
-}
-
-impl Direction {
-    fn step(&self, (j, i): (usize, usize)) -> (usize, usize) {
-        match self {
-            Direction::Up => (j - 1, i),
-            Direction::Down => (j + 1, i),
-            Direction::Left => (j, i - 1),
-            Direction::Right => (j, i + 1),
-        }
-    }
-}
-
-type State = ((usize, usize), Direction);
-
 fn neighbors((position, direction): State, elements: &Elements, height: usize, width: usize) -> Vec<State> {
-    let neighbors = match (elements.get(&position), direction) {
-        (None, _) => vec![(direction.step(position), direction)],
-
-        (Some(Element::Mirror1), Direction::Up) => vec![(Direction::Right.step(position), Direction::Right)],
-        (Some(Element::Mirror1), Direction::Down) => vec![(Direction::Left.step(position), Direction::Left)],
-        (Some(Element::Mirror1), Direction::Left) => vec![(Direction::Down.step(position), Direction::Down)],
-        (Some(Element::Mirror1), Direction::Right) => vec![(Direction::Up.step(position), Direction::Up)],
-
-        (Some(Element::Mirror2), Direction::Up) => vec![(Direction::Left.step(position), Direction::Left)],
-        (Some(Element::Mirror2), Direction::Down) => vec![(Direction::Right.step(position), Direction::Right)],
-        (Some(Element::Mirror2), Direction::Left) => vec![(Direction::Up.step(position), Direction::Up)],
-        (Some(Element::Mirror2), Direction::Right) => vec![(Direction::Down.step(position), Direction::Down)],
-
-        (Some(Element::SplitterH), Direction::Left | Direction::Right) => vec![(direction.step(position), direction)],
-        (Some(Element::SplitterH), Direction::Up | Direction::Down) => vec![
-            (Direction::Left.step(position), Direction::Left),
-            (Direction::Right.step(position), Direction::Right)
-        ],
-
-        (Some(Element::SplitterV), Direction::Up | Direction::Down) => vec![(direction.step(position), direction)],
-        (Some(Element::SplitterV), Direction::Left | Direction::Right) => vec![
-            (Direction::Up.step(position), Direction::Up),
-            (Direction::Down.step(position), Direction::Down)
-        ],
-    };
-
-    neighbors
+    elements
+        .get(&position)
+        .map(|element| element.transform(direction))
+        .unwrap_or([Some(direction), None])
         .into_iter()
+        .flatten()
+        .map(|d| (d.step(position), d))
         .filter(|((j, i), _)| (1..=height).contains(j) && (1..=width).contains(i))
         .collect_vec()
 }
