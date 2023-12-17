@@ -1,11 +1,12 @@
 use std::cmp::Reverse;
 use std::collections::{BinaryHeap, HashMap};
+use std::hash::Hash;
 use aoc_runner_derive::{aoc, aoc_generator};
 use anyhow::{Context, Result};
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
-type Input = (usize, usize, HashMap<(usize, usize), u32>);
+type Input = (usize, usize, HashMap<(usize, usize), usize>);
 
 #[aoc_generator(day17)]
 fn parse(input: &str) -> Result<Input> {
@@ -18,9 +19,9 @@ fn parse(input: &str) -> Result<Input> {
             line.chars()
                 .enumerate()
                 .filter(|&(_, c)| c != '.')
-                .map(move |(i, c)| Ok(((j + 1, i + 1), c.to_digit(10).context(format!("Invalid heat loss number: {c}"))?)))
+                .map(move |(i, c)| Ok(((j + 1, i + 1), c.to_digit(10).context(format!("Invalid heat loss number: {c}"))? as usize)))
         })
-        .collect::<Result<HashMap<(usize, usize), u32>>>();
+        .collect::<Result<_>>();
 
     Ok((height, width, map?))
 }
@@ -54,31 +55,28 @@ impl Direction {
 }
 
 type State = ((usize, usize), Direction, usize);
-fn distance<T: IntoIterator<Item=State>>(
-    source: (usize, usize),
-    grid: &HashMap<(usize, usize), u32>,
-    neighbors: impl Fn(State) -> T,
-    arrived: impl Fn(State) -> bool,
-) -> Option<u32> {
-    let mut distances: HashMap<State, u32> = HashMap::new();
-    let mut queue: BinaryHeap<(Reverse<u32>, State)> = BinaryHeap::new();
+fn distance<SearchState: Ord + Hash + Copy, IntoNeighborIterator: IntoIterator<Item=(SearchState, usize)>>(
+    source: SearchState,
+    neighbors: impl Fn(SearchState) -> IntoNeighborIterator,
+    arrived: impl Fn(SearchState) -> bool,
+) -> Option<usize> {
+    let mut distances: HashMap<SearchState, usize> = HashMap::new();
+    let mut queue: BinaryHeap<(Reverse<usize>, SearchState)> = BinaryHeap::new();
 
-    distances.insert((source, Direction::Right, 0), 0);
-    queue.push((Reverse(0), (source, Direction::Right, 0)));
+    distances.insert(source, 0);
+    queue.push((Reverse(0), source));
 
-    while let Some((Reverse(cost), state)) = queue.pop() {
+    while let Some((Reverse(current_distance), state)) = queue.pop() {
         if arrived(state) {
-            return Some(cost);
+            return Some(current_distance);
         }
 
-        for neighbor in neighbors(state) {
-            let neighbor_distance = distances.entry(neighbor).or_insert(u32::MAX);
-            let (neighbor_position, _, _) = neighbor;
-            let neighbor_cost = *grid.get(&neighbor_position)?;
+        for (neighbor, neighbor_increment) in neighbors(state) {
+            let best_neighbor_distance = distances.entry(neighbor).or_insert(usize::MAX);
 
-            if *neighbor_distance > cost + neighbor_cost {
-                *neighbor_distance = cost + neighbor_cost;
-                queue.push((Reverse(*neighbor_distance), neighbor));
+            if *best_neighbor_distance > current_distance + neighbor_increment {
+                *best_neighbor_distance = current_distance + neighbor_increment;
+                queue.push((Reverse(*best_neighbor_distance), neighbor));
             }
         }
     }
@@ -87,7 +85,7 @@ fn distance<T: IntoIterator<Item=State>>(
 }
 
 #[aoc(day17, part1)]
-fn part1(input: &Input) -> Option<u32> {
+fn part1(input: &Input) -> Option<usize> {
     let (height, width, grid) = input;
     let neighbors = |(position, direction, run_len): State| {
         Direction::iter()
@@ -100,17 +98,18 @@ fn part1(input: &Input) -> Option<u32> {
             .map(move |neighbor_direction| {
                 let neighbor_position = neighbor_direction.step(position);
                 let neighbor_run_len = if neighbor_direction == direction { run_len + 1 } else { 1 };
+                let neighbor_cost = *grid.get(&neighbor_position).unwrap_or(&usize::MAX);
 
-                (neighbor_position, neighbor_direction, neighbor_run_len)
+                ((neighbor_position, neighbor_direction, neighbor_run_len), neighbor_cost)
             })
     };
     let arrived = |(position, _, _)| position == (*height, *width);
 
-    distance((1, 1), grid, neighbors, arrived)
+    distance(((1, 1), Direction::Right, 0), neighbors, arrived)
 }
 
 #[aoc(day17, part2)]
-fn part2(input: &Input) -> Option<u32> {
+fn part2(input: &Input) -> Option<usize> {
     let (height, width, grid) = input;
     let neighbors = |(position, direction, run_len): State| {
         Direction::iter()
@@ -124,13 +123,14 @@ fn part2(input: &Input) -> Option<u32> {
             .map(move |neighbor_direction| {
                 let neighbor_position = neighbor_direction.step(position);
                 let neighbor_run_len = if neighbor_direction == direction { run_len + 1 } else { 1 };
+                let neighbor_cost = *grid.get(&neighbor_position).unwrap_or(&usize::MAX);
 
-                (neighbor_position, neighbor_direction, neighbor_run_len)
+                ((neighbor_position, neighbor_direction, neighbor_run_len), neighbor_cost)
             })
     };
     let arrived = |(position, _, run_len)| position == (*height, *width) && run_len >= 4;
 
-    distance((1, 1), grid, neighbors, arrived)
+    distance(((1, 1), Direction::Right, 0), neighbors, arrived)
 }
 
 #[cfg(test)]
