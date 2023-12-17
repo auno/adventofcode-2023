@@ -53,25 +53,13 @@ impl Direction {
     }
 }
 
-fn distance(source: (usize, usize), target: (usize, usize), (height, width, grid): &Input) -> Option<u32> {
-    type State = ((usize, usize), Direction, usize);
-
-    let neighbors = |(position, direction, run_len): State| {
-        Direction::iter()
-            .filter(move |&neighbor_direction| neighbor_direction != direction.reverse())
-            .filter(move |&neighbor_direction| run_len < 3 || neighbor_direction != direction)
-            .filter(move |&neighbor_direction| {
-                let (j, i) = neighbor_direction.step(position);
-                (1..=*height).contains(&j) && (1..=*width).contains(&i)
-            })
-            .map(move |neighbor_direction| {
-                let neighbor_position = neighbor_direction.step(position);
-                let neighbor_run_len = if neighbor_direction == direction { run_len + 1 } else { 1 };
-
-                (neighbor_position, neighbor_direction, neighbor_run_len)
-            })
-    };
-
+type State = ((usize, usize), Direction, usize);
+fn distance<T: IntoIterator<Item=State>>(
+    source: (usize, usize),
+    grid: &HashMap<(usize, usize), u32>,
+    neighbors: impl Fn(State) -> T,
+    arrived: impl Fn(State) -> bool,
+) -> Option<u32> {
     let mut distances: HashMap<State, u32> = HashMap::new();
     let mut queue: BinaryHeap<(Reverse<u32>, State)> = BinaryHeap::new();
 
@@ -79,9 +67,7 @@ fn distance(source: (usize, usize), target: (usize, usize), (height, width, grid
     queue.push((Reverse(0), (source, Direction::Right, 0)));
 
     while let Some((Reverse(cost), state)) = queue.pop() {
-        let (position, _, _) = state;
-
-        if position == target {
+        if arrived(state) {
             return Some(cost);
         }
 
@@ -102,8 +88,49 @@ fn distance(source: (usize, usize), target: (usize, usize), (height, width, grid
 
 #[aoc(day17, part1)]
 fn part1(input: &Input) -> Option<u32> {
-    let &(height, width, _) = input;
-    distance((1, 1), (height, width), input)
+    let (height, width, grid) = input;
+    let neighbors = |(position, direction, run_len): State| {
+        Direction::iter()
+            .filter(move |&neighbor_direction| neighbor_direction != direction.reverse())
+            .filter(move |&neighbor_direction| run_len < 3 || neighbor_direction != direction)
+            .filter(move |&neighbor_direction| {
+                let (j, i) = neighbor_direction.step(position);
+                (1..=*height).contains(&j) && (1..=*width).contains(&i)
+            })
+            .map(move |neighbor_direction| {
+                let neighbor_position = neighbor_direction.step(position);
+                let neighbor_run_len = if neighbor_direction == direction { run_len + 1 } else { 1 };
+
+                (neighbor_position, neighbor_direction, neighbor_run_len)
+            })
+    };
+    let arrived = |(position, _, _)| position == (*height, *width);
+
+    distance((1, 1), grid, neighbors, arrived)
+}
+
+#[aoc(day17, part2)]
+fn part2(input: &Input) -> Option<u32> {
+    let (height, width, grid) = input;
+    let neighbors = |(position, direction, run_len): State| {
+        Direction::iter()
+            .filter(move |&neighbor_direction| neighbor_direction != direction.reverse())
+            .filter(move |&neighbor_direction| (run_len == 0 || run_len >= 4) || neighbor_direction == direction)
+            .filter(move |&neighbor_direction| run_len < 10 || neighbor_direction != direction)
+            .filter(move |&neighbor_direction| {
+                let (j, i) = neighbor_direction.step(position);
+                (1..=*height).contains(&j) && (1..=*width).contains(&i)
+            })
+            .map(move |neighbor_direction| {
+                let neighbor_position = neighbor_direction.step(position);
+                let neighbor_run_len = if neighbor_direction == direction { run_len + 1 } else { 1 };
+
+                (neighbor_position, neighbor_direction, neighbor_run_len)
+            })
+    };
+    let arrived = |(position, _, run_len)| position == (*height, *width) && run_len >= 4;
+
+    distance((1, 1), grid, neighbors, arrived)
 }
 
 #[cfg(test)]
@@ -118,5 +145,20 @@ mod tests {
     #[test]
     fn part1_input() {
         assert_eq!(1004, part1(&parse(include_str!("../input/2023/day17.txt")).unwrap()).unwrap());
+    }
+
+    #[test]
+    fn part2_example1() {
+        assert_eq!(94, part2(&parse(include_str!("../test_input/day17.part2.94.txt")).unwrap()).unwrap());
+    }
+
+    #[test]
+    fn part2_example2() {
+        assert_eq!(71, part2(&parse(include_str!("../test_input/day17.part2.71.txt")).unwrap()).unwrap());
+    }
+
+    #[test]
+    fn part2_input() {
+        assert_eq!(1171, part2(&parse(include_str!("../input/2023/day17.txt")).unwrap()).unwrap());
     }
 }
