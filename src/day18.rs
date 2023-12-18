@@ -1,26 +1,13 @@
-use std::cmp::{max, min};
-use std::collections::{HashSet, VecDeque};
 use std::str::FromStr;
 use aoc_runner_derive::{aoc, aoc_generator};
 use anyhow::{bail, Context, Error, Result};
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 enum Direction {
     Up,
     Down,
     Left,
     Right,
-}
-
-impl Direction {
-    fn step(&self, (j, i): (isize, isize)) -> (isize, isize) {
-        match self {
-            Direction::Up => (j - 1, i),
-            Direction::Down => (j + 1, i),
-            Direction::Left => (j, i - 1),
-            Direction::Right => (j, i + 1),
-        }
-    }
 }
 
 impl FromStr for Direction {
@@ -39,76 +26,73 @@ impl FromStr for Direction {
     }
 }
 
-type Input = Vec<(Direction, isize, String)>;
+type Input = (Vec<(Direction, isize)>, Vec<(Direction, isize)>);
 
 #[aoc_generator(day18)]
 fn parse(input: &str) -> Result<Input> {
-    input
+    let part1: Vec<(Direction, isize)> = input
         .lines()
         .map(|line| {
             let mut parts = line.split_ascii_whitespace();
 
             let direction = parts.next().context("Missing direction")?.parse()?;
             let amount = parts.next().context("Missing amount")?.parse()?;
-            let color = parts.next().context("Missing color")?.parse()?;
 
-            Ok((direction, amount, color))
+            Ok((direction, amount))
         })
-        .collect()
+        .collect::<Result<_>>()?;
+
+    let part2: Vec<(Direction, isize)> = input
+        .lines()
+        .map(|line| {
+            let hex_code = line.split_ascii_whitespace().nth(2).context(format!("Invalid input: {line}"))?;
+
+            let direction = match &hex_code[7..8] {
+                "0" => Direction::Right,
+                "1" => Direction::Down,
+                "2" => Direction::Left,
+                "3" => Direction::Up,
+                _ => bail!("Invalid hex code: {hex_code}"),
+            };
+
+            let amount = isize::from_str_radix(&hex_code[2..7], 16)?;
+
+            eprintln!("direction: {:?}, amount: {amount}", direction);
+
+            Ok((direction, amount))
+        })
+        .collect::<Result<_>>()?;
+
+    Ok((part1, part2))
 }
 
-fn fill_outside(path: &HashSet<(isize, isize)>, (min_j, max_j, min_i, max_i): (isize, isize, isize, isize)) -> HashSet<(isize, isize)> {
-    let mut outside = HashSet::from([(min_j, min_i)]);
-    let mut queue = VecDeque::from([(min_j, min_i)]);
+fn solve(input: &Vec<(Direction, isize)>) -> isize {
+    let mut level = i32::MAX as isize;
+    let mut area = 1;
 
-    while let Some(position) = queue.pop_front() {
-        for neighbor in [
-            (position.0 - 1, position.1 - 1), (position.0 - 1, position.1), (position.0 - 1, position.1 + 1),
-            (position.0, position.1 - 1), (position.0, position.1 + 1),
-            (position.0 + 1, position.1 - 1), (position.0 + 1, position.1), (position.0 + 1, position.1 + 1),
-        ] {
-            if !outside.contains(&neighbor) && !path.contains(&neighbor) && (min_j..=max_j).contains(&neighbor.0) && (min_i..=max_i).contains(&neighbor.1) {
-                queue.push_back(neighbor);
-                outside.insert(neighbor);
-            }
+    for &(direction, amount) in input {
+        match direction {
+            Direction::Up => {
+                area += amount;
+                level += amount;
+            },
+            Direction::Down => { level -= amount; },
+            Direction::Right => { area += amount * level; }
+            Direction::Left => { area -= amount * (level - 1); }
         }
     }
 
-    outside
+    area
 }
 
 #[aoc(day18, part1)]
-fn part1(input: &Input) -> usize {
-    let mut grid = HashSet::from([(0, 0)]);
-    let mut position = (0, 0);
+fn part1((input, _): &Input) -> isize {
+    solve(input)
+}
 
-    for &(direction, amount, _) in input {
-        for _ in 0..amount {
-            position = direction.step(position);
-            grid.insert(position);
-        }
-    }
-
-    let bounds = grid
-        .iter()
-        .fold((0, 0, 0, 0), |(acc_min_j, acc_max_j, acc_min_i, acc_max_i), &(j, i)| (
-            min(acc_min_j, j - 1),
-            max(acc_max_j, j + 1),
-            min(acc_min_i, i - 1),
-            max(acc_max_i, i + 1),
-        ));
-
-    let outside = fill_outside(&grid, bounds);
-
-    for j in (bounds.0)..=(bounds.1) {
-        for i in (bounds.2)..=(bounds.3) {
-            if !outside.contains(&(j, i)) {
-                grid.insert((j, i));
-            }
-        }
-    }
-
-    grid.len()
+#[aoc(day18, part2)]
+fn part2((_, input): &Input) -> isize {
+    solve(input)
 }
 
 #[cfg(test)]
@@ -123,5 +107,15 @@ mod tests {
     #[test]
     fn part1_input() {
         assert_eq!(92758, part1(&parse(include_str!("../input/2023/day18.txt")).unwrap()));
+    }
+
+    #[test]
+    fn part2_example1() {
+        assert_eq!(952408144115, part2(&parse(include_str!("../test_input/day18.part2.952408144115.txt")).unwrap()));
+    }
+
+    #[test]
+    fn part2_input() {
+        assert_eq!(62762509300678, part2(&parse(include_str!("../input/2023/day18.txt")).unwrap()));
     }
 }
