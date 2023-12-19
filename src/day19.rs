@@ -40,8 +40,8 @@ impl FromStr for Target {
 
 #[derive(Clone)]
 enum Rule {
-    GreaterThan(Category, u32, Target),
-    LessThan(Category, u32, Target),
+    GreaterThan(Category, usize, Target),
+    LessThan(Category, usize, Target),
     Unconditional(Target),
 }
 
@@ -74,10 +74,10 @@ type Workflow = Vec<Rule>;
 
 #[derive(Copy, Clone)]
 struct Part {
-    x: u32,
-    m: u32,
-    a: u32,
-    s: u32,
+    x: usize,
+    m: usize,
+    a: usize,
+    s: usize,
 }
 
 impl FromStr for Part {
@@ -109,7 +109,7 @@ impl FromStr for Part {
 }
 
 impl Part {
-    fn rating(&self, category: Category) -> u32 {
+    fn rating(&self, category: Category) -> usize {
         match category {
             Category::X => self.x,
             Category::M => self.m,
@@ -183,12 +183,85 @@ fn evaluate(workflows: &HashMap<String, Workflow>, part: &Part) -> bool {
 }
 
 #[aoc(day19, part1)]
-fn part1((workflows, parts): &Input) -> u32 {
+fn part1((workflows, parts): &Input) -> usize {
     parts
         .iter()
         .filter(|part| evaluate(workflows, part))
         .map(|part| part.x + part.m + part.a + part.s)
         .sum()
+}
+
+#[derive(Copy, Clone)]
+struct Bounds {
+    x: (usize, usize),
+    m: (usize, usize),
+    a: (usize, usize),
+    s: (usize, usize),
+}
+
+fn set_lower_bounds(mut bounds: Bounds, category: Category, value: usize) -> Bounds {
+    match category {
+        Category::X => { bounds.x.0 = value; }
+        Category::M => { bounds.m.0 = value; }
+        Category::A => { bounds.a.0 = value; }
+        Category::S => { bounds.s.0 = value; }
+    }
+
+    bounds
+}
+
+fn set_upper_bounds(mut bounds: Bounds, category: Category, value: usize) -> Bounds {
+    match category {
+        Category::X => { bounds.x.1 = value; }
+        Category::M => { bounds.m.1 = value; }
+        Category::A => { bounds.a.1 = value; }
+        Category::S => { bounds.s.1 = value; }
+    }
+
+    bounds
+}
+
+fn target_combinations(workflows: &HashMap<String, Workflow>, target: &Target, bounds: Bounds) -> usize {
+    match target {
+        Target::Accept => (bounds.x.1 - bounds.x.0) * (bounds.m.1 - bounds.m.0) * (bounds.a.1 - bounds.a.0) * (bounds.s.1 - bounds.s.0),
+        Target::Reject => 0,
+        Target::Redirect(workflow_name) => workflow_combinations(workflows, workflows.get(workflow_name).unwrap(), bounds),
+    }
+}
+
+fn workflow_combinations(workflows: &HashMap<String, Workflow>, workflow: &Workflow, mut bounds: Bounds) -> usize {
+    let mut num_combinations = 0;
+
+    for rule in workflow {
+        match rule {
+            Rule::GreaterThan(c, v, t) => {
+                num_combinations += target_combinations(workflows, t, set_lower_bounds(bounds, *c, *v + 1));
+                bounds = set_upper_bounds(bounds, *c, *v + 1);
+            },
+            Rule::LessThan(c, v, t) => {
+                num_combinations += target_combinations(workflows, t, set_upper_bounds(bounds, *c, *v));
+                bounds = set_lower_bounds(bounds, *c, *v);
+            },
+            Rule::Unconditional(t) => {
+                num_combinations += target_combinations(workflows, t, bounds);
+                break;
+            },
+        }
+    }
+
+    num_combinations
+}
+
+#[aoc(day19, part2)]
+fn part2((workflows, _): &Input) -> usize {
+    let bounds = Bounds{
+        x: (1, 4001),
+        m: (1, 4001),
+        a: (1, 4001),
+        s: (1, 4001),
+    };
+
+    workflow_combinations(workflows, workflows.get("in").unwrap(), bounds)
 }
 
 #[cfg(test)]
@@ -203,5 +276,15 @@ mod tests {
     #[test]
     fn part1_input() {
         assert_eq!(399284, part1(&parse(include_str!("../input/2023/day19.txt")).unwrap()));
+    }
+
+    #[test]
+    fn part2_example1() {
+        assert_eq!(167409079868000, part2(&parse(include_str!("../test_input/day19.part2.167409079868000.txt")).unwrap()));
+    }
+
+    #[test]
+    fn part2_input() {
+        assert_eq!(121964982771486, part2(&parse(include_str!("../input/2023/day19.txt")).unwrap()));
     }
 }
