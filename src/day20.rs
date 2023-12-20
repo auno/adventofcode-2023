@@ -18,7 +18,7 @@ enum State {
     Off,
 }
 
-#[derive(Copy, Clone, Eq, PartialEq)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 enum Pulse {
     High,
     Low,
@@ -73,65 +73,128 @@ fn parse(input: &str) -> Result<Input> {
     )
 }
 
-#[aoc(day20, part1)]
-fn part1(modules: &Input) -> usize {
-    let mut modules = modules.clone();
-    let mut queue = VecDeque::new();
-    let mut count_high = 0;
-    let mut count_low = 0;
+fn simulate(modules: &mut HashMap<String, Module>) -> Vec<(String, String, Pulse)> {
+    let mut queue = VecDeque::from([("button".to_string(), "broadcaster".to_string(), Pulse::Low)]);
+    let mut processed_pulses = vec![];
 
-    for _ in 0..1000 {
-        queue.push_back(("button".to_string(), "broadcaster".to_string(), Pulse::Low));
-
-        while let Some((source, target, pulse)) = queue.pop_front() {
-            match pulse {
-                Pulse::High => { count_high += 1; }
-                Pulse::Low => { count_low += 1; }
-            }
-
-            match modules.entry(target.to_string()).or_insert(Module::Sink()) {
-                Module::FlipFlop(state, targets) => {
-                    if pulse == Pulse::Low {
-                        let new_pulse = match state {
-                            State::Off => {
-                                *state = State::On;
-                                Pulse::High
-                            },
-                            State::On => {
-                                *state = State::Off;
-                                Pulse::Low
-                            },
-                        };
-
-                        for new_target in targets {
-                            queue.push_back((target.to_string(), new_target.to_string(), new_pulse));
-                        }
-                    }
-                }
-                Module::Conjunction(memory, targets) => {
-                    *memory.get_mut(&source).unwrap() = pulse;
-
-                    let new_pulse = if memory.values().all(|&p| p == Pulse::High) {
-                        Pulse::Low
-                    } else {
-                        Pulse::High
+    while let Some((source, target, pulse)) = queue.pop_front() {
+        match modules.entry(target.to_string()).or_insert(Module::Sink()) {
+            Module::FlipFlop(state, targets) => {
+                if pulse == Pulse::Low {
+                    let new_pulse = match state {
+                        State::Off => {
+                            *state = State::On;
+                            Pulse::High
+                        },
+                        State::On => {
+                            *state = State::Off;
+                            Pulse::Low
+                        },
                     };
 
                     for new_target in targets {
                         queue.push_back((target.to_string(), new_target.to_string(), new_pulse));
                     }
                 }
-                Module::Broadcaster(targets) => {
-                    for new_target in targets {
-                        queue.push_back((target.to_string(), new_target.to_string(), pulse));
-                    }
+            }
+            Module::Conjunction(memory, targets) => {
+                *memory.get_mut(&source).unwrap() = pulse;
+
+                let new_pulse = if memory.values().all(|&p| p == Pulse::High) {
+                    Pulse::Low
+                } else {
+                    Pulse::High
+                };
+
+                for new_target in targets {
+                    queue.push_back((target.to_string(), new_target.to_string(), new_pulse));
                 }
-                Module::Sink() => {}
+            }
+            Module::Broadcaster(targets) => {
+                for new_target in targets {
+                    queue.push_back((target.to_string(), new_target.to_string(), pulse));
+                }
+            }
+            Module::Sink() => {}
+        }
+
+        processed_pulses.push((source, target, pulse));
+    }
+
+    processed_pulses
+}
+
+fn gcd(a: usize, b: usize) -> usize {
+    let (mut a, mut b) = (a, b);
+
+    while b != 0 {
+        let t = b;
+        b = a % b;
+        a = t;
+    }
+
+    a
+}
+
+fn lcm(a: usize, b: usize) -> usize {
+    (a * b) / gcd(a, b)
+}
+
+#[aoc(day20, part1)]
+fn part1(modules: &Input) -> usize {
+    let mut modules = modules.clone();
+    let mut count_high = 0;
+    let mut count_low = 0;
+
+    for _ in 0..1000 {
+        for (_, _, pulse) in simulate(&mut modules) {
+            match pulse {
+                Pulse::High => { count_high += 1; }
+                Pulse::Low => { count_low += 1; }
             }
         }
     }
 
     count_high * count_low
+}
+
+#[aoc(day20, part2)]
+fn part2(modules: &Input) -> usize {
+    let mut modules = modules.clone();
+
+    let mut rx_source_cycles = modules
+        .iter()
+        .find(|(_, module)| match module {
+            Module::Conjunction(_, targets) => targets.contains(&"rx".to_string()),
+            _ => false,
+        })
+        .map(|(_, module)| match module {
+            Module::Conjunction(sources, _) => sources.keys().map(|source| (source.to_string(), None)),
+            _ => unimplemented!(),
+        })
+        .unwrap()
+        .collect::<HashMap<_, _>>();
+
+    for button_presses in 1.. {
+        for (source, _, pulse) in simulate(&mut modules) {
+            for (rx_source, cycle_count) in &mut rx_source_cycles {
+                if cycle_count.is_none() && &source == rx_source && pulse == Pulse::High {
+                    *cycle_count = Some(button_presses);
+                }
+            }
+        }
+
+        if rx_source_cycles.values().all(|cycle_count| cycle_count.is_some()) {
+            break;
+        }
+    }
+
+    rx_source_cycles
+        .values()
+        .copied()
+        .map(Option::unwrap)
+        .reduce(lcm)
+        .unwrap()
 }
 
 #[cfg(test)]
@@ -151,5 +214,10 @@ mod tests {
     #[test]
     fn part1_input() {
         assert_eq!(856482136, part1(&parse(include_str!("../input/2023/day20.txt")).unwrap()));
+    }
+
+    #[test]
+    fn part2_input() {
+        assert_eq!(224046542165867, part2(&parse(include_str!("../input/2023/day20.txt")).unwrap()));
     }
 }
