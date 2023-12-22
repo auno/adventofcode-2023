@@ -4,6 +4,7 @@ use std::str::FromStr;
 use aoc_runner_derive::{aoc, aoc_generator};
 use anyhow::{bail, Context, Result, Error};
 use itertools::Itertools;
+use rayon::iter::{ParallelBridge, ParallelIterator};
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash)]
 struct Cube {
@@ -91,28 +92,41 @@ fn parse(input: &str) -> Result<Input> {
         .collect()
 }
 
-#[aoc(day22, part1)]
-fn part1(bricks: &Input) -> usize {
+fn settle_bricks(bricks: &[Brick]) -> (Vec<Brick>, usize) {
     let mut occupied = HashSet::new();
     let mut settled_bricks = vec![];
+    let mut num_fallen = 0;
 
-    for mut brick in bricks.iter().cloned().sorted_by_key(|brick| brick.level) {
-        while brick.level > 1 {
-            let lowered_brick = brick.lower();
+    for brick in bricks.iter().sorted_by_key(|brick| brick.level) {
+        let mut settling_brick = brick.clone();
+
+        while settling_brick.level > 1 {
+            let lowered_brick = settling_brick.lower();
 
             if lowered_brick.cubes.iter().any(|cube| occupied.contains(cube)) {
                 break;
             }
 
-            brick = lowered_brick;
+            settling_brick = lowered_brick;
         }
 
-        for &cube in &brick.cubes {
+        for &cube in &settling_brick.cubes {
             occupied.insert(cube);
         }
 
-        settled_bricks.push(brick);
+        if settling_brick.level < brick.level {
+            num_fallen += 1;
+        }
+
+        settled_bricks.push(settling_brick);
     }
+
+    (settled_bricks, num_fallen)
+}
+
+#[aoc(day22, part1)]
+fn part1(bricks: &Input) -> usize {
+    let (settled_bricks, _) = settle_bricks(bricks);
 
     let bricks_by_cube = settled_bricks
         .iter()
@@ -143,6 +157,26 @@ fn part1(bricks: &Input) -> usize {
         .count()
 }
 
+#[aoc(day22, part2)]
+fn part2(bricks: &Input) -> usize {
+    let (settled_bricks, _) = settle_bricks(bricks);
+
+    (0..settled_bricks.len())
+        .par_bridge()
+        .map(|i| {
+            let bricks = settled_bricks
+                .iter()
+                .enumerate()
+                .filter(|&(j, _)| j != i)
+                .map(|(_, b)| b)
+                .cloned()
+                .collect_vec();
+            let (_, num_fallen) = settle_bricks(&bricks);
+
+            num_fallen
+        })
+        .sum()
+}
 
 #[cfg(test)]
 mod tests {
@@ -156,5 +190,15 @@ mod tests {
     #[test]
     fn part1_input() {
         assert_eq!(499, part1(&parse(include_str!("../input/2023/day22.txt")).unwrap()));
+    }
+
+    #[test]
+    fn part2_example1() {
+        assert_eq!(7, part2(&parse(include_str!("../test_input/day22.example1.txt")).unwrap()));
+    }
+
+    #[test]
+    fn part2_input() {
+        assert_eq!(95059, part2(&parse(include_str!("../input/2023/day22.txt")).unwrap()));
     }
 }
