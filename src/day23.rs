@@ -170,6 +170,13 @@ fn dfs(connections: &Connections, source: (usize, usize), target: (usize, usize)
             return distance;
         }
 
+        let (position_connected_to_target, _) = connections.get(&target).unwrap()[0];
+
+        if position_connected_to_target != *current_position && path.contains(&position_connected_to_target) {
+            cache.insert(cache_key, 0);
+            return 0;
+        }
+
         let neighbors = connections
             .get(current_position)
             .unwrap()
